@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Progress } from '../ui/progress';
@@ -17,7 +17,20 @@ interface CoursePlayerProps {
 
 export function CoursePlayer({ courseId, onBack }: CoursePlayerProps) {
   const currentManager = mockManagers[0];
-  const course = mockCourses.find(c => c.id === courseId) || mockCourses[0];
+  
+  // Charger les cours depuis localStorage et les fusionner avec mockCourses
+  const allCourses = useMemo(() => {
+    let courses = [...mockCourses];
+    try {
+      const customCourses = JSON.parse(localStorage.getItem('talentium_courses') || '[]');
+      courses = [...courses, ...customCourses];
+    } catch (error) {
+      console.error('Erreur lors du chargement des courses personnalisés:', error);
+    }
+    return courses;
+  }, []);
+  
+  const course = allCourses.find(c => c.id === courseId) || mockCourses[0];
   const [selectedModule, setSelectedModule] = useState(course.modules[0]);
   const [quizAnswers, setQuizAnswers] = useState<{ [key: string]: number }>({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);

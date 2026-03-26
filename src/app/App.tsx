@@ -22,6 +22,7 @@ import { CollaboratorProgress } from './components/manager/CollaboratorProgress'
 import { TrainerDashboard } from './components/trainer/TrainerDashboard';
 import { CourseUpload } from './components/trainer/CourseUpload';
 import { RevenueAnalytics } from './components/trainer/RevenueAnalytics';
+import { TrainerMyCourses } from './components/trainer/TrainerMyCourses';
 
 // Data
 import { mockManagers, mockCourses, mockOrganization } from './data/mockData';
@@ -91,7 +92,16 @@ export default function App() {
     }
 
     if (savedCourses) {
-      setCourses(JSON.parse(savedCourses));
+      const parsed = JSON.parse(savedCourses);
+      // Fusionner les mock courses avec les courses sauvegardées
+      const mockCoursesWithDefaults = mockCourses.map(c => ({
+        ...c,
+        revenue: c.price * c.enrolledCount,
+        deliveryType: 'distance' as 'distance' | 'presentiel'
+      }));
+      // Ajouter les cours personnalisés
+      const customCourses = parsed.filter((c: any) => c.trainerId === 'trainer-custom');
+      setCourses([...mockCoursesWithDefaults, ...customCourses]);
     } else {
       const initialCourses = mockCourses.map(c => ({
         ...c,
@@ -116,7 +126,9 @@ export default function App() {
 
   useEffect(() => {
     if (courses.length > 0) {
-      localStorage.setItem('talentium_courses', JSON.stringify(courses));
+      // Sauvegarder SEULEMENT les courses créés par les formateurs pour éviter les doublons
+      const customCourses = courses.filter((c: any) => c.trainerId === 'trainer-custom');
+      localStorage.setItem('talentium_courses', JSON.stringify(customCourses));
     }
   }, [courses]);
 
@@ -187,9 +199,8 @@ export default function App() {
   const handleAddCourse = (courseData: any) => {
     const newCourse = {
       ...courseData,
-      id: `course-${Date.now()}`,
-      enrolledCount: 0,
-      revenue: 0,
+      revenue: courseData.enrolledCount * courseData.price,
+      deliveryType: courseData.deliveryType || 'distance' as 'distance' | 'presentiel',
     };
     setCourses([...courses, newCourse]);
     toast.success('Formation publiée ! 🎉', {
@@ -451,26 +462,12 @@ export default function App() {
         case 'dashboard':
           return <TrainerDashboard />;
         case 'courses':
-          return (
-            <div className="space-y-6">
-              <div>
-                <h1 className="mb-2">Mes Cours</h1>
-                <p className="text-muted-foreground">
-                  Gérez votre contenu de formation publié
-                </p>
-              </div>
-              <div className="bg-gradient-to-r from-blue-50 to-teal-50 border border-blue-200 rounded-lg p-12 text-center">
-                <p className="text-muted-foreground">
-                  Interface de gestion des cours avec des contrôles d'édition, d'analyse et de visibilité.
-                </p>
-              </div>
-            </div>
-          );
+          return <TrainerMyCourses />;
         case 'upload':
           return <CourseUpload onPublishCourse={handleAddCourse} />;
         case 'revenue':
           const trainerCourses = courses
-            .filter((c: any) => c.trainerId === 't1' || c.trainerId === 't2' || c.trainerId === 't3')
+            .filter((c: any) => c.trainerId === 't1' || c.trainerId === 't2' || c.trainerId === 't3' || c.trainerId === 'trainer-custom')
             .map((course: any) => ({
               id: course.id,
               title: course.title,

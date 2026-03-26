@@ -194,21 +194,21 @@ export function CourseUpload({ onPublishCourse }: CourseUploadProps) {
   };
 
   const handlePublishCourse = () => {
-    if (!courseTitle || !courseDescription || !courseCategory || modules.length === 0) {
-      toast.error('Erreur', {
-        description: 'Veuillez remplir tous les champs et ajouter au moins un module.',
+    // Accepter les champs vides - générer des valeurs par défaut si nécessaire
+    const finalTitle = courseTitle || `Cours ${new Date().toLocaleDateString()}`;
+    const finalDescription = courseDescription || 'Description non disponible';
+    const finalCategory = courseCategory || 'Général';
+    
+    // Au moins un module est recommandé mais pas obligatoire
+    if (modules.length === 0) {
+      toast.warning('Avertissement', {
+        description: 'Vous créez un cours sans modules. Vous pouvez en ajouter ultérieurement.',
       });
-      return;
     }
 
-    // Valider les modules
+    // Valider les modules existants
     for (const module of modules) {
-      if (!module.title) {
-        toast.error('Erreur', {
-          description: 'Tous les modules doivent avoir un titre.',
-        });
-        return;
-      }
+      const finalModuleTitle = module.title || `Module ${module.type}`;
       if (module.type === 'quiz' && (!module.questions || module.questions.length === 0)) {
         toast.error('Erreur', {
           description: `Le module quiz doit contenir au moins une question.`,
@@ -219,7 +219,7 @@ export function CourseUpload({ onPublishCourse }: CourseUploadProps) {
 
     const courseModule = modules.map((m, i) => ({
       id: `m-${Date.now()}-${i}`,
-      title: m.title,
+      title: m.title || `Module ${m.type}`,
       duration: m.duration || 0,
       type: m.type as 'video' | 'text' | 'quiz',
       content: m.type === 'text' ? m.textContent : undefined,
@@ -229,16 +229,16 @@ export function CourseUpload({ onPublishCourse }: CourseUploadProps) {
 
     const courseData = {
       id: `c-${Date.now()}`,
-      title: courseTitle,
-      description: courseDescription,
-      category: courseCategory,
+      title: finalTitle,
+      description: finalDescription,
+      category: finalCategory,
       price: coursePrice,
-      trainer: 'Coach Formateur',
+      trainer: 'Mon Cours',
       trainerId: 'trainer-custom',
-      duration: modules.reduce((acc, m) => acc + (m.duration || 0), 0) / 60,
+      duration: modules.length > 0 ? modules.reduce((acc, m) => acc + (m.duration || 0), 0) / 60 : 0,
       rating: 4.5,
       enrolledCount: 0,
-      discRecommendations: selectedDISC,
+      discRecommendations: selectedDISC.length > 0 ? selectedDISC : ['D', 'I', 'S', 'C'],
       modules: courseModule,
       thumbnail: courseThumbnail ? localStorage.getItem('course-thumbnail') : undefined,
     };

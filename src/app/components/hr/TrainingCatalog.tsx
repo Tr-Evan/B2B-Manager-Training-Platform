@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
-import { Search, Clock, Star, Users, Send, X } from 'lucide-react';
+import { Search, Clock, Star, Users, Send, X, BookOpen } from 'lucide-react';
 import { mockCourses } from '../../data/mockData';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { motion, AnimatePresence } from 'motion/react';
@@ -21,10 +21,27 @@ export function TrainingCatalog({ isCollaboratorView = false, onRequestCourse }:
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
+  const [allCourses, setAllCourses] = useState<any[]>([]);
 
-  const categories = ['all', ...Array.from(new Set(mockCourses.map(c => c.category)))];
+  // Charger les cours au montage du composant
+  useEffect(() => {
+    // Charger les mock courses
+    let courses = [...mockCourses];
+    
+    // Charger les cours créés par les formateurs depuis localStorage
+    try {
+      const customCourses = JSON.parse(localStorage.getItem('talentium_courses') || '[]');
+      courses = [...courses, ...customCourses];
+    } catch (error) {
+      console.error('Erreur lors du chargement des cours personnalisés:', error);
+    }
+    
+    setAllCourses(courses);
+  }, []);
 
-  const filteredCourses = mockCourses.filter((course) => {
+  const categories = ['all', ...Array.from(new Set(allCourses.map(c => c.category)))];
+
+  const filteredCourses = allCourses.filter((course) => {
     const matchesSearch =
       course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       course.description.toLowerCase().includes(searchQuery.toLowerCase());
@@ -95,6 +112,20 @@ export function TrainingCatalog({ isCollaboratorView = false, onRequestCourse }:
                   whileHover={{ scale: 1.02, y: -5 }}
                 >
                   <Card className="border-2 hover:border-primary/30 hover:shadow-xl transition-all duration-300 h-full flex flex-col">
+                    <div className="h-40 w-full bg-gradient-to-br from-purple-200 via-yellow-300 to-orange-400 overflow-hidden rounded-t-2xl flex items-center justify-center relative">
+                      {course.thumbnail ? (
+                        <img
+                          src={course.thumbnail}
+                          alt={course.title}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <BookOpen className="w-12 h-12 text-purple-600 opacity-50" />
+                          <span className="text-purple-700 font-semibold text-sm">{course.category}</span>
+                        </div>
+                      )}
+                    </div>
                     <CardHeader className="flex-1">
                       <div className="flex items-start justify-between mb-2">
                         <Badge variant="secondary">{course.category}</Badge>

@@ -5,6 +5,10 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 export function TrainerDashboard() {
   const trainerCourses = mockCourses.filter((c) => c.trainerId === 't1');
+  
+  // Charger aussi les cours créés par le formateur custom depuis localStorage
+  const customCreatedCourses = JSON.parse(localStorage.getItem('talentium_courses') || '[]').filter((c: any) => c.trainerId === 'trainer-custom');
+  const allTrainerCourses = [...trainerCourses, ...customCreatedCourses];
 
   const revenueData = [
     { month: 'Jan', revenue: 3200 },
@@ -15,7 +19,7 @@ export function TrainerDashboard() {
     { month: 'Juin', revenue: 5800 },
   ];
 
-  const enrollmentData = trainerCourses.map((course) => ({
+  const enrollmentData = allTrainerCourses.map((course) => ({
     name: course.title.slice(0, 20),
     students: course.enrolledCount,
   }));
@@ -149,13 +153,26 @@ export function TrainerDashboard() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {trainerCourses.map((course) => (
-              <div key={course.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex-1">
-                  <h3 className="font-medium">{course.title}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {course.category} • {course.duration} heures
-                  </p>
+            {allTrainerCourses.map((course) => (
+              <div key={course.id} className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-all">
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="h-16 w-16 min-w-16 bg-gradient-to-br from-yellow-200 via-yellow-300 to-yellow-400 rounded-lg overflow-hidden flex items-center justify-center">
+                    {course.thumbnail ? (
+                      <img
+                        src={course.thumbnail}
+                        alt={course.title}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <BookOpen className="w-8 h-8 text-yellow-600 opacity-50" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-medium">{course.title}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {course.category} • {course.duration} heures
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-8 text-sm">
                   <div className="text-center">

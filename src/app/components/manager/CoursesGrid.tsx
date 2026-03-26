@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
-import { Clock, Star, Play, CheckCircle2 } from 'lucide-react';
+import { Clock, Star, Play, CheckCircle2, BookOpen } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface CourseCardData {
@@ -17,6 +17,7 @@ interface CourseCardData {
   status: 'not-started' | 'in-progress' | 'completed';
   modules: number;
   completedModules: number;
+  thumbnail?: string;
 }
 
 interface CoursesGridProps {
@@ -116,6 +117,20 @@ export function CoursesGrid({ courses, onCourseClick }: CoursesGridProps) {
             whileHover={{ scale: 1.02, y: -5 }}
           >
             <Card className="border-2 hover:border-primary/30 hover:shadow-xl transition-all duration-300 h-full flex flex-col cursor-pointer">
+              <div className="h-40 w-full bg-gradient-to-br from-blue-200 via-blue-300 to-cyan-400 overflow-hidden rounded-t-2xl flex items-center justify-center relative">
+                {course.thumbnail ? (
+                  <img
+                    src={course.thumbnail}
+                    alt={course.title}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <BookOpen className="w-12 h-12 text-blue-600 opacity-50" />
+                    <span className="text-blue-700 font-semibold text-sm">{course.category}</span>
+                  </div>
+                )}
+              </div>
               <CardHeader onClick={() => onCourseClick(course.id)} className="flex-1">
                 <div className="flex items-start justify-between mb-2">
                   <Badge
