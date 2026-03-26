@@ -6,6 +6,11 @@ import { Progress } from '../ui/progress';
 import { Separator } from '../ui/separator';
 import { CreditCard, Package, TrendingUp, Download, Calendar, CheckCircle2 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { toast } from 'sonner';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 interface LicensesBillingProps {
   totalLicenses: number;
@@ -14,8 +19,36 @@ interface LicensesBillingProps {
 }
 
 export function LicensesBilling({ totalLicenses, usedLicenses, collaborators }: LicensesBillingProps) {
+  const [licensesToBuy, setLicensesToBuy] = useState(10);
+  const [paymentMethod, setPaymentMethod] = useState('card');
+
   const availableLicenses = totalLicenses - usedLicenses;
   const usagePercentage = (usedLicenses / totalLicenses) * 100;
+  const costPerLicense = 90; // €/mois
+
+  const handlePurchaseLicenses = () => {
+    if (licensesToBuy <= 0) {
+      toast.error('Erreur', {
+        description: 'Veuillez sélectionner un nombre de licences valide.',
+      });
+      return;
+    }
+
+    const totalCost = licensesToBuy * costPerLicense;
+    
+    toast.success('Achat en cours...', {
+      description: `${licensesToBuy} licences ajoutées • Montant : ${totalCost}€/mois`,
+      duration: 2000,
+    });
+
+    // Simuler l'ajout de licences
+    setTimeout(() => {
+      toast.success('Achat réussi ! 🎉', {
+        description: `${licensesToBuy} nouvelles licences sont maintenant disponibles.`,
+      });
+      setLicensesToBuy(10);
+    }, 1500);
+  };
 
   const monthlyInvoices = [
     { month: 'Mars 2026', amount: 4500, status: 'paid', date: '01/03/2026', licenses: 50 },
@@ -142,10 +175,122 @@ export function LicensesBilling({ totalLicenses, usedLicenses, collaborators }: 
               </div>
             )}
 
-            <Button className="w-full shadow-md hover:shadow-lg transition-all">
-              <Package className="w-4 h-4 mr-2" />
-              Acheter Plus de Licences
-            </Button>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button className="w-full shadow-md hover:shadow-lg transition-all">
+                  <Package className="w-4 h-4 mr-2" />
+                  Acheter Plus de Licences
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Augmenter vos Licences</DialogTitle>
+                  <DialogDescription>
+                    Ajoutez plus de licences à votre forfait
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-6">
+                  {/* Nombre de licences */}
+                  <div className="space-y-2">
+                    <Label htmlFor="licenses">Nombre de licences</Label>
+                    <div className="flex items-center gap-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setLicensesToBuy(Math.max(1, licensesToBuy - 5))}
+                      >
+                        −
+                      </Button>
+                      <Input
+                        id="licenses"
+                        type="number"
+                        min="1"
+                        max="1000"
+                        value={licensesToBuy}
+                        onChange={(e) => setLicensesToBuy(Math.max(1, parseInt(e.target.value) || 0))}
+                        className="text-center text-lg font-bold"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setLicensesToBuy(licensesToBuy + 5)}
+                      >
+                        +
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Sélectionnez entre 1 et 1000 licences
+                    </p>
+                  </div>
+
+                  {/* Tarif */}
+                  <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Prix par licence</span>
+                      <span className="font-medium">{costPerLicense}€/mois</span>
+                    </div>
+                    <Separator />
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold">Coût total mensuel</span>
+                      <span className="text-2xl font-bold text-blue-600">
+                        {licensesToBuy * costPerLicense}€
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Méthode de paiement */}
+                  <div className="space-y-2">
+                    <Label htmlFor="payment">Méthode de paiement</Label>
+                    <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                      <SelectTrigger id="payment">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="card">Carte bancaire</SelectItem>
+                        <SelectItem value="sepa">Virement SEPA</SelectItem>
+                        <SelectItem value="invoice">Facturation</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Résumé */}
+                  <div className="bg-gray-50 border-2 rounded-xl p-4 space-y-3 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Licences actuelles</span>
+                      <span className="font-medium">{totalLicenses}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Licences à ajouter</span>
+                      <span className="font-medium text-green-600">+{licensesToBuy}</span>
+                    </div>
+                    <Separator />
+                    <div className="flex items-center justify-between font-semibold">
+                      <span>Total après l'achat</span>
+                      <span className="text-lg">{totalLicenses + licensesToBuy}</span>
+                    </div>
+                  </div>
+
+                  {/* Boutons */}
+                  <div className="flex gap-3">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setLicensesToBuy(10)}
+                    >
+                      Annuler
+                    </Button>
+                    <Button
+                      className="flex-1"
+                      onClick={handlePurchaseLicenses}
+                    >
+                      <CreditCard className="w-4 h-4 mr-2" />
+                      Procéder au paiement
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </CardContent>
         </Card>
       </motion.div>

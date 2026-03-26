@@ -120,11 +120,12 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
   const currentRole = roles.find(r => r.id === selectedRole);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center p-4">
+    <div className="min-h-screen min-w-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.4 }}
+        className="w-full max-w-xl"
       >
         <Card className="w-full max-w-2xl shadow-xl border-2">
           <CardHeader className="text-center">

@@ -3,11 +3,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
-import { Search, Clock, Star, Users, Send } from 'lucide-react';
+import { Search, Clock, Star, Users, Send, X } from 'lucide-react';
 import { mockCourses } from '../../data/mockData';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { Progress } from '../ui/progress';
 
 interface TrainingCatalogProps {
   isCollaboratorView?: boolean;
@@ -17,6 +20,7 @@ interface TrainingCatalogProps {
 export function TrainingCatalog({ isCollaboratorView = false, onRequestCourse }: TrainingCatalogProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedCourse, setSelectedCourse] = useState<any>(null);
 
   const categories = ['all', ...Array.from(new Set(mockCourses.map(c => c.category)))];
 
@@ -146,9 +150,124 @@ export function TrainingCatalog({ isCollaboratorView = false, onRequestCourse }:
                               {course.modules.length} modules
                             </p>
                           </div>
-                          <Button variant="outline" className="w-full">
-                            Voir les Détails
-                          </Button>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="outline" className="w-full" onClick={() => setSelectedCourse(course)}>
+                                Voir les Détails
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-2xl max-h-96 overflow-y-auto">
+                              <DialogHeader>
+                                <DialogTitle>{course.title}</DialogTitle>
+                                <DialogDescription>
+                                  {course.category} • {course.duration}h • Par {course.trainer}
+                                </DialogDescription>
+                              </DialogHeader>
+
+                              <div className="space-y-6">
+                                {/* Description */}
+                                <div className="space-y-2">
+                                  <h3 className="font-semibold text-sm">Description</h3>
+                                  <p className="text-sm text-muted-foreground leading-relaxed">
+                                    {course.description}
+                                  </p>
+                                </div>
+
+                                {/* Statistiques */}
+                                <div className="grid grid-cols-3 gap-4">
+                                  <div className="text-center p-3 bg-blue-50 rounded-lg">
+                                    <p className="text-2xl font-bold text-blue-600">{course.rating}</p>
+                                    <p className="text-xs text-muted-foreground">Note</p>
+                                  </div>
+                                  <div className="text-center p-3 bg-green-50 rounded-lg">
+                                    <p className="text-2xl font-bold text-green-600">{course.enrolledCount}</p>
+                                    <p className="text-xs text-muted-foreground">Inscrits</p>
+                                  </div>
+                                  <div className="text-center p-3 bg-purple-50 rounded-lg">
+                                    <p className="text-2xl font-bold text-purple-600">{course.price}€</p>
+                                    <p className="text-xs text-muted-foreground">Prix</p>
+                                  </div>
+                                </div>
+
+                                {/* Profils DISC */}
+                                <div className="space-y-2">
+                                  <h3 className="font-semibold text-sm">Recommandé pour les profils DISC :</h3>
+                                  <div className="flex gap-2 flex-wrap">
+                                    {course.discRecommendations.map((profile: string) => (
+                                      <Badge key={profile} variant="secondary">
+                                        {profile}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                {/* Modules */}
+                                <Tabs defaultValue="modules" className="w-full">
+                                  <TabsList className="grid w-full grid-cols-2">
+                                    <TabsTrigger value="modules">Modules</TabsTrigger>
+                                    <TabsTrigger value="apercu">Aperçu</TabsTrigger>
+                                  </TabsList>
+
+                                  <TabsContent value="modules" className="space-y-3 mt-4">
+                                    {course.modules && course.modules.length > 0 ? (
+                                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                                        {course.modules.map((module: any, idx: number) => (
+                                          <div key={idx} className="p-3 bg-gray-50 rounded-lg border text-sm">
+                                            <div className="flex items-center justify-between">
+                                              <span className="font-medium">{idx + 1}. {module.title}</span>
+                                              <Badge variant="outline" className="text-xs">
+                                                {module.type}
+                                              </Badge>
+                                            </div>
+                                            <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
+                                              <span className="flex items-center gap-1">
+                                                <Clock className="w-3 h-3" />
+                                                {module.duration} min
+                                              </span>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <p className="text-sm text-muted-foreground">Aucun module disponible</p>
+                                    )}
+                                  </TabsContent>
+
+                                  <TabsContent value="apercu" className="space-y-3 mt-4">
+                                    <div className="space-y-4">
+                                      <div>
+                                        <h4 className="text-sm font-semibold mb-2">Points clés du cours :</h4>
+                                        <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-5">
+                                          <li>Contenu pratique et appliquable immédiatement</li>
+                                          <li>Formateur expert avec {Math.floor(Math.random() * 15) + 5}+ années d'expérience</li>
+                                          <li>Accès à vie au contenu</li>
+                                          <li>Certificat de complétion</li>
+                                        </ul>
+                                      </div>
+
+                                      <div>
+                                        <h4 className="text-sm font-semibold mb-2">Pour qui ?</h4>
+                                        <p className="text-sm text-muted-foreground">
+                                          Ce cours est particulièrement adapté aux managers, superviseurs et responsables d'équipe
+                                          qui souhaitent développer leurs compétences en {course.category.toLowerCase()}.
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </TabsContent>
+                                </Tabs>
+
+                                {/* Boutons d'action */}
+                                <div className="flex gap-3 pt-4">
+                                  <Button className="flex-1">
+                                    {isCollaboratorView ? 'Demander l\'accès' : 'Acheter le cours'}
+                                  </Button>
+                                  <Button variant="outline" className="flex-1">
+                                    Partager
+                                  </Button>
+                                </div>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
                         </div>
                       )}
                     </CardContent>

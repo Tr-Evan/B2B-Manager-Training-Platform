@@ -7,17 +7,30 @@ import { Textarea } from '../ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Badge } from '../ui/badge';
 import { Checkbox } from '../ui/checkbox';
-import { Upload, Plus, Trash2, Video, FileText, HelpCircle, Save, Send } from 'lucide-react';
+import { Upload, Plus, Trash2, Video, FileText, HelpCircle, Save, Send, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { discProfileInfo } from '../../data/mockData';
 import { Separator } from '../ui/separator';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
+import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
+
+interface Question {
+  id: string;
+  question: string;
+  options: string[];
+  correctAnswer: number;
+}
 
 interface Module {
   id: string;
   title: string;
   type: 'video' | 'text' | 'quiz';
   duration: number;
+  videoFile?: File;
+  videoUrl?: string;
+  textContent?: string;
+  questions?: Question[];
+  imageUrl?: string;
 }
 
 interface CourseUploadProps {
@@ -31,6 +44,8 @@ export function CourseUpload({ onPublishCourse }: CourseUploadProps) {
   const [courseDescription, setCourseDescription] = useState('');
   const [courseCategory, setCourseCategory] = useState('');
   const [coursePrice, setCoursePrice] = useState(299);
+  const [courseThumbnail, setCourseThumbnail] = useState<File | null>(null);
+  const [expandedModule, setExpandedModule] = useState<string | null>(null);
 
   const addModule = (type: 'video' | 'text' | 'quiz') => {
     const newModule = {
@@ -68,6 +83,116 @@ export function CourseUpload({ onPublishCourse }: CourseUploadProps) {
     });
   };
 
+  const updateModule = (id: string, updates: Partial<Module>) => {
+    setModules(modules.map((m) => (m.id === id ? { ...m, ...updates } : m)));
+  };
+
+  const addQuestion = (moduleId: string) => {
+    setModules(
+      modules.map((m) => {
+        if (m.id === moduleId && m.type === 'quiz') {
+          const newQuestion: Question = {
+            id: `q-${Date.now()}`,
+            question: '',
+            options: ['', '', '', ''],
+            correctAnswer: 0,
+          };
+          return {
+            ...m,
+            questions: [...(m.questions || []), newQuestion],
+          };
+        }
+        return m;
+      })
+    );
+    toast.success('Question ajoutée !');
+  };
+
+  const removeQuestion = (moduleId: string, questionId: string) => {
+    setModules(
+      modules.map((m) => {
+        if (m.id === moduleId && m.type === 'quiz') {
+          return {
+            ...m,
+            questions: m.questions?.filter((q) => q.id !== questionId),
+          };
+        }
+        return m;
+      })
+    );
+    toast.info('Question supprimée');
+  };
+
+  const updateQuestion = (moduleId: string, questionId: string, updates: Partial<Question>) => {
+    setModules(
+      modules.map((m) => {
+        if (m.id === moduleId && m.type === 'quiz') {
+          return {
+            ...m,
+            questions: m.questions?.map((q) => (q.id === questionId ? { ...q, ...updates } : q)),
+          };
+        }
+        return m;
+      })
+    );
+  };
+
+  const updateQuestionOption = (moduleId: string, questionId: string, optionIndex: number, value: string) => {
+    setModules(
+      modules.map((m) => {
+        if (m.id === moduleId && m.type === 'quiz') {
+          return {
+            ...m,
+            questions: m.questions?.map((q) => {
+              if (q.id === questionId) {
+                const newOptions = [...q.options];
+                newOptions[optionIndex] = value;
+                return { ...q, options: newOptions };
+              }
+              return q;
+            }),
+          };
+        }
+        return m;
+      })
+    );
+  };
+
+  const handleVideoUpload = (moduleId: string, file: File) => {
+    // Stocker en cache navigateur (localStorage)
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const videoData = e.target?.result as string;
+      try {
+        localStorage.setItem(`video-${moduleId}`, videoData);
+        updateModule(moduleId, { videoFile: file, videoUrl: `local-${moduleId}` });
+        toast.success('Vidéo téléchargée et mise en cache !');
+      } catch (error) {
+        toast.error('La vidéo est trop volumineuse pour le cache navigateur');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleImageUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const imageData = e.target?.result as string;
+      try {
+        localStorage.setItem('course-thumbnail', imageData);
+        setCourseThumbnail(file);
+        toast.success('Image de couverture téléchargée et mise en cache !');
+      } catch (error) {
+        toast.error('L\'image est trop volumineuse pour le cache navigateur');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleTextUpload = (moduleId: string, event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    updateModule(moduleId, { textContent: event.target.value });
+  };
+
   const handlePublishCourse = () => {
     if (!courseTitle || !courseDescription || !courseCategory || modules.length === 0) {
       toast.error('Erreur', {
@@ -76,30 +201,91 @@ export function CourseUpload({ onPublishCourse }: CourseUploadProps) {
       return;
     }
 
+    // Valider les modules
+    for (const module of modules) {
+      if (!module.title) {
+        toast.error('Erreur', {
+          description: 'Tous les modules doivent avoir un titre.',
+        });
+        return;
+      }
+      if (module.type === 'quiz' && (!module.questions || module.questions.length === 0)) {
+        toast.error('Erreur', {
+          description: `Le module quiz doit contenir au moins une question.`,
+        });
+        return;
+      }
+    }
+
+    const courseModule = modules.map((m, i) => ({
+      id: `m-${Date.now()}-${i}`,
+      title: m.title,
+      duration: m.duration || 0,
+      type: m.type as 'video' | 'text' | 'quiz',
+      content: m.type === 'text' ? m.textContent : undefined,
+      videoUrl: m.type === 'video' ? m.videoUrl : undefined,
+      questions: m.type === 'quiz' ? m.questions : undefined,
+    }));
+
     const courseData = {
+      id: `c-${Date.now()}`,
       title: courseTitle,
       description: courseDescription,
       category: courseCategory,
       price: coursePrice,
-      trainer: 'Vous',
-      trainerId: 'trainer-current',
-      duration: modules.reduce((acc, m) => acc + m.duration, 0) / 60,
+      trainer: 'Coach Formateur',
+      trainerId: 'trainer-custom',
+      duration: modules.reduce((acc, m) => acc + (m.duration || 0), 0) / 60,
       rating: 4.5,
+      enrolledCount: 0,
       discRecommendations: selectedDISC,
-      modules: modules.map((m, i) => ({
-        id: `${m.id}-${i}`,
-        title: m.title,
-        duration: m.duration,
-        type: m.type,
-      })),
+      modules: courseModule,
+      thumbnail: courseThumbnail ? localStorage.getItem('course-thumbnail') : undefined,
     };
 
-    if (onPublishCourse) {
-      onPublishCourse(courseData);
-    } else {
+    // Sauvegarder dans localStorage
+    try {
+      const existingCourses = JSON.parse(localStorage.getItem('talentium_courses') || '[]');
+      existingCourses.push(courseData);
+      localStorage.setItem('talentium_courses', JSON.stringify(existingCourses));
+
+      // Sauvegarder aussi les quizzes
+      const quizzesData: { [key: string]: any } = {};
+      courseModule.forEach((m) => {
+        if (m.type === 'quiz' && m.questions) {
+          quizzesData[m.id] = {
+            id: `quiz-${m.id}`,
+            moduleId: m.id,
+            questions: m.questions,
+          };
+        }
+      });
+      
+      if (Object.keys(quizzesData).length > 0) {
+        const existingQuizzes = JSON.parse(localStorage.getItem('talentium_quizzes') || '{}');
+        localStorage.setItem('talentium_quizzes', JSON.stringify({ ...existingQuizzes, ...quizzesData }));
+      }
+
+      if (onPublishCourse) {
+        onPublishCourse(courseData);
+      }
+
       toast.success('Cours publié avec succès ! 🎉', {
-        description: 'Votre cours est maintenant disponible dans le catalogue.',
+        description: 'Votre cours est maintenant disponible dans le catalogue et en cache navigateur.',
         duration: 5000,
+      });
+
+      // Réinitialiser le formulaire
+      setCourseTitle('');
+      setCourseDescription('');
+      setCourseCategory('');
+      setCoursePrice(299);
+      setModules([]);
+      setSelectedDISC([]);
+      setCourseThumbnail(null);
+    } catch (error) {
+      toast.error('Erreur lors de la sauvegarde', {
+        description: 'Impossible de sauvegarder le cours. Veuillez vérifier l\'espace de stockage.',
       });
     }
   };
@@ -305,11 +491,23 @@ export function CourseUpload({ onPublishCourse }: CourseUploadProps) {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="md:col-span-2 space-y-2">
                         <Label>Titre du Module</Label>
-                        <Input placeholder="ex. Introduction au Leadership" className="transition-all focus:ring-2" />
+                        <Input 
+                          placeholder="ex. Introduction au Leadership"
+                          value={module.title}
+                          onChange={(e) => updateModule(module.id, { title: e.target.value })}
+                          className="transition-all focus:ring-2"
+                        />
                       </div>
                       <div className="space-y-2">
                         <Label>Durée (minutes)</Label>
-                        <Input type="number" placeholder="45" min="0" className="transition-all focus:ring-2" />
+                        <Input 
+                          type="number" 
+                          placeholder="45" 
+                          min="0"
+                          value={module.duration}
+                          onChange={(e) => updateModule(module.id, { duration: parseInt(e.target.value) || 0 })}
+                          className="transition-all focus:ring-2"
+                        />
                       </div>
                     </div>
 
@@ -321,9 +519,28 @@ export function CourseUpload({ onPublishCourse }: CourseUploadProps) {
                           <p className="text-sm text-muted-foreground mb-3">
                             Glissez-déposez votre fichier vidéo ou cliquez pour parcourir
                           </p>
-                          <Button variant="outline" size="sm" className="shadow-sm">
+                          <input
+                            type="file"
+                            accept="video/*"
+                            onChange={(e) => {
+                              if (e.target.files?.[0]) {
+                                handleVideoUpload(module.id, e.target.files[0]);
+                              }
+                            }}
+                            className="hidden"
+                            id={`video-${module.id}`}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="shadow-sm"
+                            onClick={() => document.getElementById(`video-${module.id}`)?.click()}
+                          >
                             Choisir un Fichier
                           </Button>
+                          {module.videoFile && (
+                            <p className="text-xs text-green-600 mt-2">✓ {module.videoFile.name} téléchargé</p>
+                          )}
                         </div>
                       </div>
                     )}
@@ -334,23 +551,91 @@ export function CourseUpload({ onPublishCourse }: CourseUploadProps) {
                         <Textarea
                           placeholder="Écrivez le contenu de votre leçon ici..."
                           rows={6}
+                          value={module.textContent || ''}
+                          onChange={(e) => handleTextUpload(module.id, e)}
                           className="transition-all focus:ring-2"
                         />
                       </div>
                     )}
 
                     {module.type === 'quiz' && (
-                      <div className="space-y-2">
-                        <Label>Questions du Quiz</Label>
-                        <div className="border-2 rounded-xl p-5 bg-muted/30">
-                          <p className="text-sm text-muted-foreground mb-3">
-                            Ajoutez 5 à 10 questions à choix multiples pour tester la compréhension
-                          </p>
-                          <Button variant="outline" size="sm" className="shadow-sm">
-                            <Plus className="w-4 h-4 mr-2" />
-                            Ajouter une Question
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <Label>Questions du Quiz ({module.questions?.length || 0})</Label>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => addQuestion(module.id)}
+                            className="shadow-sm"
+                          >
+                            <Plus className="w-4 h-4 mr-1" />
+                            Ajouter
                           </Button>
                         </div>
+
+                        {module.questions && module.questions.length > 0 ? (
+                          <div className="space-y-4 max-h-96 overflow-y-auto border-2 rounded-lg p-4 bg-muted/30">
+                            {module.questions.map((question, qIndex) => (
+                              <div key={question.id} className="border-2 rounded-lg p-4 bg-white space-y-3">
+                                <div className="flex items-start justify-between">
+                                  <span className="text-sm font-medium">Question {qIndex + 1}</span>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => removeQuestion(module.id, question.id)}
+                                    className="hover:bg-red-50 hover:text-red-600 h-8 w-8 p-0"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </Button>
+                                </div>
+
+                                <div className="space-y-1">
+                                  <Label className="text-xs">Énoncé</Label>
+                                  <Input
+                                    placeholder="Posez votre question..."
+                                    value={question.question}
+                                    onChange={(e) =>
+                                      updateQuestion(module.id, question.id, { question: e.target.value })
+                                    }
+                                    className="text-sm"
+                                  />
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label className="text-xs mb-2">Réponses</Label>
+                                  <RadioGroup
+                                    value={question.correctAnswer.toString()}
+                                    onValueChange={(value) =>
+                                      updateQuestion(module.id, question.id, { correctAnswer: parseInt(value) })
+                                    }
+                                  >
+                                    {question.options.map((option, oIndex) => (
+                                      <div key={oIndex} className="flex items-center gap-2 mb-2">
+                                        <RadioGroupItem value={oIndex.toString()} id={`q-${question.id}-${oIndex}`} />
+                                        <Input
+                                          id={`q-${question.id}-${oIndex}`}
+                                          placeholder={`Option ${oIndex + 1}`}
+                                          value={option}
+                                          onChange={(e) =>
+                                            updateQuestionOption(module.id, question.id, oIndex, e.target.value)
+                                          }
+                                          className="text-xs"
+                                        />
+                                      </div>
+                                    ))}
+                                  </RadioGroup>
+                                  <p className="text-xs text-muted-foreground mt-2">* Sélectionnez la réponse correcte</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="border-2 border-dashed rounded-xl p-8 text-center bg-muted/30">
+                            <HelpCircle className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-50" />
+                            <p className="text-sm text-muted-foreground">Aucune question pour le moment</p>
+                            <p className="text-xs text-muted-foreground mt-2">Cliquez sur "Ajouter" pour créer votre première question</p>
+                          </div>
+                        )}
                       </div>
                     )}
                   </motion.div>
@@ -397,9 +682,27 @@ export function CourseUpload({ onPublishCourse }: CourseUploadProps) {
               <p className="text-xs text-muted-foreground mb-4">
                 Taille recommandée : 1280x720px (ratio 16:9)
               </p>
-              <Button variant="outline" className="shadow-sm">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  if (e.target.files?.[0]) {
+                    handleImageUpload(e.target.files[0]);
+                  }
+                }}
+                className="hidden"
+                id="thumbnail-upload"
+              />
+              <Button
+                variant="outline"
+                className="shadow-sm"
+                onClick={() => document.getElementById('thumbnail-upload')?.click()}
+              >
                 Choisir une Image
               </Button>
+              {courseThumbnail && (
+                <p className="text-xs text-green-600 mt-2">✓ {courseThumbnail.name} téléchargé</p>
+              )}
             </div>
           </CardContent>
         </Card>
